@@ -1,0 +1,248 @@
+{
+ "Project": [
+  {
+   "fieldname": "custom_customer_reference",
+   "label": "Customer Reference",
+   "fieldtype": "Data",
+   "insert_after": "customer"
+  },
+  {
+   "fieldname": "custom_project_manager",
+   "label": "Project Manager",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "insert_after": "company",
+   "ignore_user_permissions": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "custom_project_manager_company",
+   "label": "Project Manager Company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "insert_after": "custom_project_manager"
+  },
+  {
+   "fieldname": "custom_address",
+   "label": "Address",
+   "fieldtype": "Link",
+   "options": "Address",
+   "insert_after": "column_break_14"
+  }
+ ],
+ "Task": [
+  {
+   "fieldname": "custom_billing_type",
+   "label": "Billing Type",
+   "fieldtype": "Select",
+   "options": "Fixed Price\nTimesheet based\nMilestone based\nProgress based",
+   "insert_after": "is_template"
+  },
+  {
+   "fieldname": "custom_project_manager",
+   "label": "Project Manager",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "insert_after": "closing_date",
+   "fetch_from": "project.custom_project_manager",
+   "ignore_user_permissions": 1
+  }
+ ],
+ "Timesheet Detail": [
+  {
+   "fieldname": "custom_is_billed",
+   "label": "Is Billed",
+   "fieldtype": "Check",
+   "default": "0",
+   "insert_after": "is_billable",
+   "read_only": 1,
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "custom_subject",
+   "label": "Subject",
+   "fieldtype": "Data",
+   "insert_after": "task",
+   "fetch_from": "task.subject",
+   "fetch_if_empty": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "custom_project_manager",
+   "label": "Project Manager",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "insert_after": "custom_subject",
+   "fetch_from": "project.custom_project_manager",
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "custom_project_manager_company",
+   "label": "Project Manager Company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "insert_after": "custom_project_manager",
+   "fetch_from": "project.custom_project_manager_company"
+  }
+ ],
+ "Sales Invoice": [
+  {
+   "fieldname": "custom_customer_reference",
+   "label": "Customer Reference",
+   "fieldtype": "Data",
+   "insert_after": "company_tax_id",
+   "fetch_from": "project.custom_customer_reference",
+   "fetch_if_empty": 1
+  },
+  {
+   "fieldname": "custom_date_paid",
+   "label": "Date Paid",
+   "fieldtype": "Date",
+   "insert_after": "due_date",
+   "hidden": 1,
+   "allow_on_submit": 1
+  }
+ ],
+ "Quotation": [
+  {
+   "fieldname": "custom_description",
+   "label": "Description",
+   "fieldtype": "Data",
+   "insert_after": "customer_section",
+   "allow_on_submit": 1
+  }
+ ],
+ "Sales Order": [
+  {
+   "fieldname": "custom_description",
+   "label": "Description",
+   "fieldtype": "Data",
+   "insert_after": "column_break0",
+   "allow_on_submit": 1
+  }
+ ],
+ "Company": [
+  {
+   "fieldname": "disabled",
+   "label": "Disabled",
+   "fieldtype": "Check",
+   "default": "0",
+   "insert_after": "abbr",
+   "in_standard_filter": 1,
+   "description": "Hides this company from the pick lists in Y-next. Existing transactions stay."
+  },
+  {
+   "fieldname": "custom_signature_section",
+   "label": "E-mail Signature",
+   "fieldtype": "Section Break",
+   "insert_after": "website",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "custom_trade_name",
+   "label": "Trade Name",
+   "fieldtype": "Data",
+   "insert_after": "custom_signature_section",
+   "description": "How the company writes its name in the e-mail signature. Empty: the company name."
+  },
+  {
+   "fieldname": "custom_signature_greeting",
+   "label": "Signature Greeting",
+   "fieldtype": "Data",
+   "insert_after": "custom_trade_name",
+   "description": "The closing line above the name. Empty: the default greeting."
+  },
+  {
+   "fieldname": "custom_linkedin_url",
+   "label": "LinkedIn URL",
+   "fieldtype": "Data",
+   "options": "URL",
+   "insert_after": "custom_signature_greeting"
+  },
+  {
+   "fieldname": "custom_signature_column",
+   "fieldtype": "Column Break",
+   "insert_after": "custom_linkedin_url"
+  },
+  {
+   "fieldname": "custom_brand_color_dark",
+   "label": "Brand Color (Text)",
+   "fieldtype": "Color",
+   "insert_after": "custom_signature_column",
+   "description": "The colour of the text in the e-mail signature."
+  },
+  {
+   "fieldname": "custom_brand_color_accent",
+   "label": "Brand Color (Accent)",
+   "fieldtype": "Color",
+   "insert_after": "custom_brand_color_dark",
+   "description": "The colour of the first name and the links in the e-mail signature."
+  }
+ ],
+ "Email Account": [
+  {
+   "fieldname": "custom_company",
+   "label": "Company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "insert_after": "email_account_name",
+   "description": "Mail sent from this mailbox is signed with the house style of this company. Empty: the company of the sender."
+  }
+ ],
+ "Travel Request": [
+  {
+   "fieldname": "custom_from_date",
+   "label": "From Date",
+   "fieldtype": "Date",
+   "insert_after": "details_of_sponsor",
+   "read_only": 1
+  },
+  {
+   "fieldname": "custom_to_date",
+   "label": "To Date",
+   "fieldtype": "Date",
+   "insert_after": "custom_from_date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "custom_total_distance",
+   "label": "Total Distance",
+   "fieldtype": "Float",
+   "insert_after": "itinerary",
+   "read_only": 1
+  }
+ ],
+ "Travel Itinerary": [
+  {
+   "fieldname": "custom_distance",
+   "label": "Distance",
+   "fieldtype": "Float",
+   "insert_after": "advance_amount",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "custom_travel_type",
+   "label": "Travel Type",
+   "fieldtype": "Select",
+   "options": "Private\nBusiness",
+   "default": "Business",
+   "insert_after": "custom_distance",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "custom_travel_cost",
+   "label": "Travel Cost",
+   "fieldtype": "Currency",
+   "insert_after": "custom_travel_type",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "custom_journey_type",
+   "label": "Journey Type",
+   "fieldtype": "Select",
+   "options": "One way\nReturn",
+   "default": "Return",
+   "insert_after": "custom_travel_cost"
+  }
+ ]
+}
