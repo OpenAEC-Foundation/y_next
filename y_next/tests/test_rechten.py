@@ -3,12 +3,15 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from y_next.tests.hulp import maak_gebruiker, maak_medewerker
+from y_next.tests.hulp import maak_gebruiker, maak_mail, maak_medewerker, maak_postbus
 
 ANNA = "anna@voorbeeld.test"
 BRAM = "bram@voorbeeld.test"
 PIETER = "pieter.projecten@voorbeeld.test"
 PORTAAL = "portaal@voorbeeld.test"
+PETRA = "petra.projecten@voorbeeld.test"
+BEHEER = "beheer@voorbeeld.test"
+BEHEER2 = "beheer2@voorbeeld.test"
 
 BERICHT = "/y-next#/messenger"
 
@@ -86,3 +89,73 @@ class TestBerichtenVersturen(RechtenTestCase):
 		self.assertRaises(frappe.PermissionError, check_write_permission, "Notification Log", naam)
 		self.assertFalse(frappe.has_permission("Notification Log", "write", doc=naam))
 		self.assertFalse(frappe.has_permission("Notification Log", "read", doc=naam))
+
+
+class TestConceptenAlleenVoorMaker(RechtenTestCase):
+	"""Een concept of geplande mail op de server is persoonlijk, ook in een gedeelde postbus."""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		maak_gebruiker(PETRA, "Petra", rollen=("Projects User",))
+		maak_gebruiker(BEHEER, "Beheer", rollen=("System Manager",))
+		maak_gebruiker(BEHEER2, "Beheer2", rollen=("System Manager",))
+		cls.postbus = maak_postbus("Y Gedeelde testbus", "gedeeld@voorbeeld.test", PIETER)
+		maak_postbus("Y Gedeelde testbus", "gedeeld@voorbeeld.test", PETRA)
+
+	def concept(self, maker: str, map: str = "Y-NEXT-CONCEPT") -> str:
+		naam = maak_mail(
+			self.postbus,
+			communication_type="Automated Message",
+			sent_or_received="Sent",
+			imap_folder=map,
+		)
+		# db_insert zet de sessiegebruiker als eigenaar; de maker komt erna.
+		frappe.db.set_value("Communication", naam, "owner", maker, update_modified=False)
+		self.addCleanup(frappe.db.delete, "Communication", {"name": naam})
+		return naam
+
+	def zichtbaar(self, gebruiker: str, naam: str) -> bool:
+		frappe.set_user(gebruiker)
+		return bool(frappe.get_list("Communication", filters={"name": naam}, pluck="name"))
+
+	def test_concept_alleen_in_de_lijst_van_de_maker(self):
+		for map in ("Y-NEXT-CONCEPT", "Y-NEXT-GEPLAND"):
+			for maker, ander in ((PIETER, PETRA), (BEHEER, BEHEER2), (PIETER, "Administrator")):
+				with self.subTest(map=map, maker=maker, ander=ander):
+					naam = self.concept(maker, map)
+					self.assertTrue(self.zichtbaar(maker, naam))
+					self.assertFalse(self.zichtbaar(ander, naam))
+
+	def test_concept_niet_te_openen_door_een_ander(self):
+		naam = self.concept(PIETER)
+		for ander in (PETRA, BEHEER):
+			with self.subTest(ander=ander):
+				for ptype in ("read", "write", "delete"):
+					self.assertFalse(frappe.has_permission("Communication", ptype, doc=naam, user=ander))
+		self.assertTrue(frappe.has_permission("Communication", "read", doc=naam, user=PIETER))
+
+	def test_gewone_mail_in_de_gedeelde_postbus_blijft_voor_iedereen(self):
+		naam = maak_mail(self.postbus)
+		self.addCleanup(frappe.db.delete, "Communication", {"name": naam})
+		for gebruiker in (PIETER, PETRA, BEHEER):
+			with self.subTest(gebruiker=gebruiker):
+				self.assertTrue(self.zichtbaar(gebruiker, naam))
+				self.assertTrue(frappe.has_permission("Communication", "read", doc=naam, user=gebruiker))
+
+	def test_een_nieuw_concept_aanmaken_mag(self):
+		frappe.set_user(BEHEER)
+		concept = frappe.get_doc(
+			{
+				"doctype": "Communication",
+				"communication_type": "Automated Message",
+				"communication_medium": "Email",
+				"sent_or_received": "Sent",
+				"imap_folder": "Y-NEXT-CONCEPT",
+				"subject": "Concept",
+				"content": "Tekst",
+				"recipients": "iemand@voorbeeld.test",
+			}
+		).insert()
+		self.addCleanup(frappe.db.delete, "Communication", {"name": concept.name})
+		self.assertEqual(concept.owner, BEHEER)

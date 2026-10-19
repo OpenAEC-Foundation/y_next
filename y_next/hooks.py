@@ -45,6 +45,14 @@ override_doctype_class = {
 	"Notification Log": "y_next.berichten_log.YNextNotificationLog",
 }
 
+# Concepten en geplande mails (Communication) zijn alleen voor de maker; zie rechten.py.
+permission_query_conditions = {
+	"Communication": "y_next.rechten.concepten_query",
+}
+has_permission = {
+	"Communication": "y_next.rechten.concepten_has_permission",
+}
+
 add_to_apps_screen = [
 	{
 		"name": "y_next",
