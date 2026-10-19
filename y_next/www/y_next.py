@@ -14,9 +14,25 @@ from y_next.bundle import BASE_URL, get_entry
 no_cache = 1
 
 
+def is_medewerker_account(gebruiker: str) -> bool:
+	"""Een account met bureaurollen (System User). Een Website User, zoals een gast
+	van de omgeving, kan in Y-next niets: elke aanroep zou op een rechtenfout stuiten."""
+	return frappe.get_cached_value("User", gebruiker, "user_type") == "System User"
+
+
 def get_context(context):
-	bundel = get_entry()
 	context.no_cache = 1
+	context.geen_toegang = False
+	if frappe.session.user != "Guest" and not is_medewerker_account(frappe.session.user):
+		context.geen_toegang = True
+		context.http_status_code = 403
+		context.entry_js = None
+		context.entry_css = []
+		context.csrf_token = ""
+		context.mogelijkheden = ""
+		return context
+
+	bundel = get_entry()
 	context.base_url = BASE_URL
 	context.entry_js = bundel["js"] if bundel else None
 	context.entry_css = bundel["css"] if bundel else []

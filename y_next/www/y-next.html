@@ -22,6 +22,12 @@
 			{%- endif %}
 		</script>
 		<script type="module" src="{{ base_url }}{{ entry_js }}"></script>
+		{%- elif geen_toegang %}
+		<main style="max-width: 32rem; margin: 4rem auto; padding: 0 1rem; font-family: system-ui, sans-serif; line-height: 1.5">
+			<h1 style="font-size: 1.25rem">Geen toegang tot Y-next</h1>
+			<p>Y-next is er voor medewerkers van deze omgeving. Je account heeft geen medewerkersrechten; vraag de beheerder van de omgeving om toegang.</p>
+			<p><a href="/me">Naar je account</a> &middot; <a href="/logout">Uitloggen</a></p>
+		</main>
 		{%- else %}
 		<p>De bundel van Y-next ontbreekt in deze installatie. Installeer de app opnieuw of neem contact op met beheer.</p>
 		{%- endif %}
