@@ -4,6 +4,7 @@ import frappe
 from frappe import _
 
 from y_next.api import is_beheerder
+from y_next.rechten import CONCEPT_MAPPEN, KOPPELING_DOCTYPE, KOPPELING_NAAM
 from y_next.api.postbussen import eigen_postbussen
 
 STATUSSEN = ("Open", "Replied", "Closed", "Linked")
@@ -59,6 +60,14 @@ def mail_bijwerken(
 
 	if not patch:
 		frappe.throw(_("Geen te wijzigen velden opgegeven."))
+
+	# Een concept of geplande mail bewaart zijn koppeling in eigen velden, zodat
+	# hij in geen enkele tijdlijn verschijnt (zie y_next.rechten).
+	if ("reference_doctype" in patch or "reference_name" in patch) and frappe.db.get_value(
+		"Communication", naam, "imap_folder"
+	) in CONCEPT_MAPPEN:
+		patch[KOPPELING_DOCTYPE] = patch.pop("reference_doctype", None) or None
+		patch[KOPPELING_NAAM] = patch.pop("reference_name", None) or None
 
 	# Een kopie: set_value zet er zelf `modified` en `modified_by` bij.
 	frappe.db.set_value("Communication", naam, dict(patch), update_modified=True)

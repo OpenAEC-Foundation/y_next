@@ -212,6 +212,154 @@ class TestConceptenAlleenVoorMaker(RechtenTestCase):
 		self.assertEqual(concept.owner, BEHEER)
 
 
+class TestConceptBuitenDeTijdlijn(RechtenTestCase):
+	"""Een concept verschijnt in geen enkele tijdlijn: niet bij de koppeling, de klant of het contact."""
+
+	MAKER = "maker.tijdlijn@voorbeeld.test"
+	BEHEERDER = "beheerder.tijdlijn@voorbeeld.test"
+	COLLEGA = "collega.tijdlijn@voorbeeld.test"
+	KLANT = "Y Tijdlijnklant"
+	ADRES = "tijdlijn.klant@voorbeeld.test"
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		# Iedereen mag Contact, Customer en Project lezen; de maker en de beheerder zijn System Manager.
+		lezen = ("Sales User", "Projects User")
+		maak_gebruiker(cls.MAKER, "Maker", rollen=("System Manager", *lezen))
+		maak_gebruiker(cls.BEHEERDER, "Beheerder", rollen=("System Manager", *lezen))
+		maak_gebruiker(cls.COLLEGA, "Collega", rollen=lezen)
+		if not frappe.db.exists("Customer", cls.KLANT):
+			frappe.get_doc(
+				{"doctype": "Customer", "customer_name": cls.KLANT, "customer_type": "Company"}
+			).insert(ignore_permissions=True)
+		cls.contact = frappe.db.get_value("Contact Email", {"email_id": cls.ADRES}, "parent")
+		if not cls.contact:
+			contact = frappe.get_doc(
+				{
+					"doctype": "Contact",
+					"first_name": "Tijdlijn",
+					"email_ids": [{"email_id": cls.ADRES, "is_primary": 1}],
+					"links": [{"link_doctype": "Customer", "link_name": cls.KLANT}],
+				}
+			).insert(ignore_permissions=True)
+			cls.contact = contact.name
+		cls.project = frappe.db.get_value("Project", {"project_name": "Y Tijdlijnproject"})
+		if not cls.project:
+			cls.project = (
+				frappe.get_doc({"doctype": "Project", "project_name": "Y Tijdlijnproject"})
+				.insert(ignore_permissions=True)
+				.name
+			)
+		frappe.db.commit()
+
+	def mail(self, map: str | None = "Y-NEXT-CONCEPT", **velden) -> str:
+		frappe.set_user(self.MAKER)
+		doc = frappe.get_doc(
+			{
+				"doctype": "Communication",
+				"communication_type": "Automated Message" if map else "Communication",
+				"communication_medium": "Email",
+				"sent_or_received": "Sent",
+				"imap_folder": map,
+				"subject": "Geheim concept",
+				"content": "<p>Nog niet versturen</p>",
+				"sender": self.MAKER,
+				"recipients": self.ADRES,
+				"reference_doctype": "Project",
+				"reference_name": self.project,
+				**velden,
+			}
+		).insert()
+		frappe.set_user("Administrator")
+		self.addCleanup(frappe.db.delete, "Communication", {"name": doc.name})
+		self.addCleanup(frappe.db.delete, "Communication Link", {"parent": doc.name})
+		return doc.name
+
+	def in_tijdlijn(self, gebruiker: str, doctype: str, naam: str, mail: str) -> bool:
+		from frappe.desk.form import load
+
+		frappe.set_user(gebruiker)
+		try:
+			via_lijst = {c.name for c in load.get_communications(doctype, naam, 0, 100)}
+			frappe.local.response = frappe._dict({"docs": []})
+			load.getdoc(doctype, naam)
+			via_docinfo = {c["name"] for c in frappe.response.docinfo.communications}
+			via_docinfo |= {c["name"] for c in frappe.response.docinfo.automated_messages}
+		finally:
+			frappe.set_user("Administrator")
+		return mail in via_lijst or mail in via_docinfo
+
+	def test_concept_staat_niet_in_een_tijdlijn(self):
+		for map in ("Y-NEXT-CONCEPT", "Y-NEXT-GEPLAND"):
+			naam = self.mail(map)
+			for kijker in (self.BEHEERDER, self.COLLEGA, "Administrator", self.MAKER):
+				for doctype, docnaam in (("Contact", self.contact), ("Customer", self.KLANT), ("Project", self.project)):
+					with self.subTest(map=map, kijker=kijker, doctype=doctype):
+						self.assertFalse(self.in_tijdlijn(kijker, doctype, docnaam, naam))
+
+	def test_koppeling_van_een_concept_blijft_bewaard_voor_de_maker(self):
+		naam = self.mail()
+		self.assertEqual(frappe.db.get_value("Communication", naam, ["reference_doctype", "reference_name"]), (None, None))
+		self.assertFalse(frappe.db.exists("Communication Link", {"parent": naam}))
+		frappe.set_user(self.MAKER)
+		(rij,) = frappe.get_list(
+			"Communication",
+			filters={"name": naam},
+			fields=["name", "content", "custom_y_koppeling_doctype", "custom_y_koppeling_naam"],
+		)
+		self.assertEqual((rij.custom_y_koppeling_doctype, rij.custom_y_koppeling_naam), ("Project", self.project))
+		concept = frappe.get_doc("Communication", naam)
+		concept.content = "<p>Aangepast</p>"
+		concept.save()
+		self.assertEqual(frappe.db.get_value("Communication", naam, "custom_y_koppeling_naam"), self.project)
+		self.assertFalse(frappe.db.exists("Communication Link", {"parent": naam}))
+
+	def test_koppelen_via_mail_bijwerken_gaat_ook_niet_naar_de_tijdlijn(self):
+		from y_next.tests.hulp import roep
+
+		naam = self.mail(reference_doctype=None, reference_name=None)
+		frappe.set_user(self.MAKER)
+		roep("mail_bijwerken", naam=naam, reference_doctype="Project", reference_name=self.project)
+		frappe.set_user("Administrator")
+		self.assertEqual(frappe.db.get_value("Communication", naam, ["reference_doctype", "reference_name"]), (None, None))
+		self.assertEqual(frappe.db.get_value("Communication", naam, "custom_y_koppeling_naam"), self.project)
+		self.assertFalse(self.in_tijdlijn(self.BEHEERDER, "Project", self.project, naam))
+
+	def test_verstuurde_mail_staat_gewoon_in_de_tijdlijn(self):
+		naam = self.mail(map=None)
+		for doctype, docnaam in (("Contact", self.contact), ("Customer", self.KLANT), ("Project", self.project)):
+			with self.subTest(doctype=doctype):
+				self.assertTrue(self.in_tijdlijn(self.BEHEERDER, doctype, docnaam, naam))
+
+	def test_concept_dat_verstuurd_wordt_krijgt_zijn_koppeling_terug(self):
+		naam = self.mail()
+		frappe.set_user(self.MAKER)
+		mail = frappe.get_doc("Communication", naam)
+		mail.imap_folder = None
+		mail.communication_type = "Communication"
+		mail.save()
+		frappe.set_user("Administrator")
+		self.assertEqual(
+			frappe.db.get_value("Communication", naam, ["reference_doctype", "reference_name"]), ("Project", self.project)
+		)
+		self.assertTrue(self.in_tijdlijn(self.BEHEERDER, "Project", self.project, naam))
+		self.assertTrue(self.in_tijdlijn(self.BEHEERDER, "Contact", self.contact, naam))
+
+	def test_migratie_haalt_bestaande_concepten_uit_de_tijdlijn(self):
+		from y_next.setup import install
+
+		naam = self.mail(map=None)
+		# Een concept van vóór deze versie: koppeling en tijdlijnregels staan er nog.
+		frappe.db.set_value("Communication", naam, {"communication_type": "Automated Message", "imap_folder": "Y-NEXT-CONCEPT"})
+		self.assertTrue(self.in_tijdlijn(self.BEHEERDER, "Contact", self.contact, naam))
+		install.sync_all()
+		for doctype, docnaam in (("Contact", self.contact), ("Customer", self.KLANT), ("Project", self.project)):
+			with self.subTest(doctype=doctype):
+				self.assertFalse(self.in_tijdlijn(self.BEHEERDER, doctype, docnaam, naam))
+		self.assertEqual(frappe.db.get_value("Communication", naam, "custom_y_koppeling_naam"), self.project)
+
+
 def postbusrechten(gebruiker: str) -> set[str]:
 	"""De postbussen waartoe een gebruiker via User Permissions op Communication beperkt is."""
 	return set(

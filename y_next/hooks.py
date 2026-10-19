@@ -61,6 +61,10 @@ doc_events = {
 	"User": {
 		"on_update": "y_next.api.postbussen.postbusrechten_bijwerken",
 	},
+	# Concepten en geplande mails komen in geen tijdlijn; zie rechten.py.
+	"Communication": {
+		"validate": "y_next.rechten.concept_buiten_tijdlijn",
+	},
 }
 
 add_to_apps_screen = [

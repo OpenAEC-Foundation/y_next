@@ -244,5 +244,24 @@
    "default": "Return",
    "insert_after": "custom_travel_cost"
   }
+ ],
+ "Communication": [
+  {
+   "fieldname": "custom_y_koppeling_doctype",
+   "label": "Draft link type",
+   "fieldtype": "Link",
+   "options": "DocType",
+   "insert_after": "reference_owner",
+   "read_only": 1,
+   "description": "Y-next drafts and scheduled mails keep their link here instead of in Reference, so they never appear in a timeline. On sending, the link moves back to Reference."
+  },
+  {
+   "fieldname": "custom_y_koppeling_naam",
+   "label": "Draft link",
+   "fieldtype": "Dynamic Link",
+   "options": "custom_y_koppeling_doctype",
+   "insert_after": "custom_y_koppeling_doctype",
+   "read_only": 1
+  }
  ]
 }

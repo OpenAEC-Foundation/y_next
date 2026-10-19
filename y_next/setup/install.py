@@ -47,6 +47,7 @@ def sync_all():
 	sync_permissions()
 	sync_master_records()
 	sync_postbusrechten()
+	sync_concepten()
 
 
 def sync_custom_fields(definities: dict | None = None):
@@ -86,3 +87,10 @@ def sync_postbusrechten():
 	from y_next.api.postbussen import alle_postbusrechten_bijwerken
 
 	alle_postbusrechten_bijwerken()
+
+
+def sync_concepten():
+	"""Concepten en geplande mails uit elke tijdlijn halen (zie `y_next.rechten`)."""
+	from y_next.rechten import concepten_uit_de_tijdlijn
+
+	concepten_uit_de_tijdlijn()
