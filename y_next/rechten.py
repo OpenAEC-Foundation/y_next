@@ -36,3 +36,28 @@ def concepten_has_permission(doc, ptype: str | None = None, user: str | None = N
 	if not _is_concept(doc) or doc.is_new():
 		return True
 	return doc.owner == (user or frappe.session.user)
+
+
+# Wat iemand met een bericht uit het archief (`Y Bericht`) mag.
+ALLEEN_LEZEN = {"read", "print", "email", "export", "report", "share"}
+
+
+def y_bericht_query(user: str | None = None, doctype: str | None = None) -> str | None:
+	"""Een bericht uit het archief staat alleen in de lijst van afzender en ontvanger."""
+	gebruiker = user or frappe.session.user
+	if gebruiker == "Administrator":
+		return None
+	ik = frappe.db.escape(gebruiker)
+	return f"(`tabY Bericht`.`afzender` = {ik} or `tabY Bericht`.`ontvanger` = {ik})"
+
+
+def y_bericht_has_permission(doc, ptype: str | None = None, user: str | None = None) -> bool:
+	"""Lezen: afzender en ontvanger. Wijzigen (het gelezen-vinkje): alleen de ontvanger."""
+	gebruiker = user or frappe.session.user
+	if doc.is_new():
+		return True
+	if ptype in ALLEEN_LEZEN:
+		return gebruiker in (doc.afzender, doc.ontvanger)
+	if ptype == "write":
+		return gebruiker == doc.ontvanger
+	return True

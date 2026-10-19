@@ -241,3 +241,60 @@ class TestPostbusrechten(RechtenTestCase):
 		frappe.db.delete("User Permission", {"user": KEES, "allow": "Email Account"})
 		install.sync_all()
 		self.assertEqual(postbusrechten(KEES), {"Y Bus Een"})
+
+
+class TestBerichtenArchief(RechtenTestCase):
+	"""`Y Bericht`: het archief van de berichten van vóór Notification Log, alleen-lezen."""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		maak_gebruiker(BEHEER, "Beheer", rollen=("System Manager",))
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		self.naam = frappe.get_doc(
+			{"doctype": "Y Bericht", "afzender": ANNA, "ontvanger": BRAM, "bericht": "<p>Oud bericht</p>"}
+		).insert().name
+		self.addCleanup(frappe.db.delete, "Y Bericht", {"name": self.naam})
+
+	def zichtbaar(self, gebruiker: str) -> bool:
+		frappe.set_user(gebruiker)
+		return bool(frappe.get_list("Y Bericht", filters={"name": self.naam}, pluck="name"))
+
+	def test_hoort_bij_de_app(self):
+		self.assertEqual(frappe.db.get_value("DocType", "Y Bericht", ["module", "custom"]), ("Y Next", 0))
+		meta = frappe.get_meta("Y Bericht")
+		for veld in ("afzender", "ontvanger", "bericht", "gelezen", "afbeelding"):
+			self.assertTrue(meta.has_field(veld), veld)
+
+	def test_alleen_afzender_en_ontvanger_lezen_het(self):
+		self.assertTrue(self.zichtbaar(ANNA))
+		self.assertTrue(self.zichtbaar(BRAM))
+		for ander in (PIETER, BEHEER):
+			with self.subTest(ander=ander):
+				self.assertFalse(self.zichtbaar(ander))
+				self.assertFalse(frappe.has_permission("Y Bericht", "read", doc=self.naam, user=ander))
+
+	def test_ontvanger_zet_alleen_het_gelezen_vinkje(self):
+		frappe.set_user(BRAM)
+		bericht = frappe.get_doc("Y Bericht", self.naam)
+		bericht.gelezen = 1
+		bericht.save()
+		self.assertEqual(frappe.db.get_value("Y Bericht", self.naam, "gelezen"), 1)
+
+		bericht.bericht = "<p>Anders</p>"
+		self.assertRaises(frappe.ValidationError, bericht.save)
+
+		frappe.set_user(ANNA)
+		self.assertFalse(frappe.has_permission("Y Bericht", "write", doc=self.naam, user=ANNA))
+
+	def test_het_archief_groeit_niet(self):
+		for gebruiker in (ANNA, PIETER):
+			with self.subTest(gebruiker=gebruiker):
+				frappe.set_user(gebruiker)
+				self.assertRaises(
+					frappe.PermissionError,
+					frappe.get_doc({"doctype": "Y Bericht", "afzender": gebruiker, "ontvanger": BRAM, "bericht": "x"}).insert,
+				)
+				self.assertFalse(frappe.has_permission("Y Bericht", "delete", doc=self.naam, user=gebruiker))

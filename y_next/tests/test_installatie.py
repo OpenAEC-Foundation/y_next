@@ -9,6 +9,7 @@ EIGEN_DOCTYPES = [
 	"Y Onkosten",
 	"Agenda Koppeling",
 	"Y Agenda Deellink",
+	"Y Bericht",
 ]
 
 
