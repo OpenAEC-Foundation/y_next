@@ -91,6 +91,56 @@ class TestBerichtenVersturen(RechtenTestCase):
 		self.assertFalse(frappe.has_permission("Notification Log", "write", doc=naam))
 		self.assertFalse(frappe.has_permission("Notification Log", "read", doc=naam))
 
+	def wijzig_als_afzender(self, naam: str, **velden):
+		frappe.set_user(ANNA)
+		bericht = frappe.get_doc("Notification Log", naam)
+		bericht.update(velden)
+		bericht.save()
+
+	def test_afzender_kan_na_versturen_niets_anders_dan_de_link_wijzigen(self):
+		naam = self.stuur(ANNA, BRAM)
+		frappe.set_user("Administrator")
+		voor = frappe.db.get_value("Notification Log", naam, ["from_user", "for_user", "owner", "type"], as_dict=True)
+		pogingen = {
+			"from_user": {"from_user": PIETER},
+			"for_user": {"for_user": PIETER},
+			"owner": {"owner": PIETER},
+			"type": {"type": "Mention"},
+			"document_name": {"document_name": PIETER},
+			"subject": {"subject": "Iets anders", "email_content": "Iets anders"},
+		}
+		for wat, velden in pogingen.items():
+			with self.subTest(wat=wat):
+				self.assertRaises(
+					(frappe.PermissionError, frappe.ValidationError), self.wijzig_als_afzender, naam, **velden
+				)
+				frappe.set_user("Administrator")
+				self.assertEqual(
+					frappe.db.get_value(
+						"Notification Log", naam, ["from_user", "for_user", "owner", "type"], as_dict=True
+					),
+					voor,
+				)
+
+	def test_link_blijft_een_bericht_van_hetzelfde_gesprek(self):
+		naam = self.stuur(ANNA, BRAM)
+		ongeldig = {
+			"extern": "https://voorbeeld.test/messenger",
+			"andere route": "/app/todo",
+			"externe afbeelding": BERICHT + "?img=https%3A%2F%2Fvoorbeeld.test%2Fx.png&k=abc123",
+			"andere sleutel": BERICHT + "?img=%2Fprivate%2Ffiles%2Ffoto.png&k=anders",
+			"sleutel weg": BERICHT + "?img=%2Fprivate%2Ffiles%2Ffoto.png",
+			"extra parameter": BERICHT + "?img=%2Fprivate%2Ffiles%2Ffoto.png&k=abc123&g=groep1",
+		}
+		for wat, link in ongeldig.items():
+			with self.subTest(wat=wat):
+				self.assertRaises(
+					(frappe.PermissionError, frappe.ValidationError), self.wijzig_als_afzender, naam, link=link
+				)
+		self.wijzig_als_afzender(naam, link=BERICHT + "?img=%2Fprivate%2Ffiles%2Ffoto.png&sz=1234&k=abc123")
+		frappe.set_user("Administrator")
+		self.assertIn("img=", frappe.db.get_value("Notification Log", naam, "link"))
+
 
 class TestConceptenAlleenVoorMaker(RechtenTestCase):
 	"""Een concept of geplande mail op de server is persoonlijk, ook in een gedeelde postbus."""
