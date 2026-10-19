@@ -40,6 +40,11 @@ override_whitelisted_methods = {
 	"agenda_ical": "y_next.api.mailserver.ical.agenda_ical",
 }
 
+# Berichten: de afzender maakt ook de kopie voor de ontvanger aan (zie berichten_log.py).
+override_doctype_class = {
+	"Notification Log": "y_next.berichten_log.YNextNotificationLog",
+}
+
 add_to_apps_screen = [
 	{
 		"name": "y_next",
