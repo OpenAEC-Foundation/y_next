@@ -53,6 +53,13 @@ has_permission = {
 	"Communication": "y_next.rechten.concepten_has_permission",
 }
 
+# Postbussen van een gebruiker worden ook per mail afgedwongen (User Permissions).
+doc_events = {
+	"User": {
+		"on_update": "y_next.api.postbussen.postbusrechten_bijwerken",
+	},
+}
+
 add_to_apps_screen = [
 	{
 		"name": "y_next",

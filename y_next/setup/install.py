@@ -7,6 +7,9 @@ Drie soorten definities, elk in een JSON-bestand in deze map:
                          maar die Frappe standaard niet geeft;
 - `master_records.json`  stamgegevens die Y-next verwacht.
 
+Daarnaast zet `sync_postbusrechten` de User Permissions per toegewezen postbus
+neer (zie `y_next.api.postbussen.postbusrechten_bijwerken`).
+
 Het provisioneringsscript van de publicatieroute leest dezelfde bestanden.
 Zo is er één plek waar staat wat een site nodig heeft.
 
@@ -43,6 +46,7 @@ def sync_all():
 	sync_custom_fields()
 	sync_permissions()
 	sync_master_records()
+	sync_postbusrechten()
 
 
 def sync_custom_fields(definities: dict | None = None):
@@ -75,3 +79,10 @@ def sync_master_records(records: list | None = None):
 		if not frappe.db.exists("DocType", doctype) or frappe.db.exists(doctype, record["name"]):
 			continue
 		frappe.get_doc({"doctype": doctype, **record["payload"]}).insert(ignore_permissions=True)
+
+
+def sync_postbusrechten():
+	"""User Permissions per toegewezen postbus, ook voor wie al vóór de app een postbus had."""
+	from y_next.api.postbussen import alle_postbusrechten_bijwerken
+
+	alle_postbusrechten_bijwerken()

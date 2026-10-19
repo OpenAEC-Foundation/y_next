@@ -12,6 +12,7 @@ PORTAAL = "portaal@voorbeeld.test"
 PETRA = "petra.projecten@voorbeeld.test"
 BEHEER = "beheer@voorbeeld.test"
 BEHEER2 = "beheer2@voorbeeld.test"
+KEES = "kees.postbus@voorbeeld.test"
 
 BERICHT = "/y-next#/messenger"
 
@@ -159,3 +160,84 @@ class TestConceptenAlleenVoorMaker(RechtenTestCase):
 		).insert()
 		self.addCleanup(frappe.db.delete, "Communication", {"name": concept.name})
 		self.assertEqual(concept.owner, BEHEER)
+
+
+def postbusrechten(gebruiker: str) -> set[str]:
+	"""De postbussen waartoe een gebruiker via User Permissions op Communication beperkt is."""
+	return set(
+		frappe.get_all(
+			"User Permission",
+			filters={"user": gebruiker, "allow": "Email Account", "applicable_for": "Communication"},
+			pluck="for_value",
+		)
+	)
+
+
+class TestPostbusrechten(RechtenTestCase):
+	"""Wie een postbus toegewezen kreeg, leest mail uit die postbus en niet uit een andere."""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		maak_gebruiker(KEES, "Kees", rollen=("Projects User",))
+		maak_gebruiker(BEHEER, "Beheer", rollen=("System Manager",))
+		for naam, adres in (("Y Bus Een", "een@voorbeeld.test"), ("Y Bus Twee", "twee@voorbeeld.test")):
+			if not frappe.db.exists("Email Account", naam):
+				frappe.get_doc(
+					{
+						"doctype": "Email Account",
+						"email_account_name": naam,
+						"email_id": adres,
+						"enable_incoming": 0,
+						"enable_outgoing": 0,
+					}
+				).insert(ignore_permissions=True)
+
+	def setUp(self):
+		for gebruiker in (KEES, BEHEER):
+			doc = frappe.get_doc("User", gebruiker)
+			doc.set("user_emails", [])
+			doc.save(ignore_permissions=True)
+		frappe.db.delete("User Permission", {"user": ["in", [KEES, BEHEER]], "allow": "Email Account"})
+
+	def wijs_toe(self, gebruiker: str, *postbussen: str):
+		doc = frappe.get_doc("User", gebruiker)
+		doc.set("user_emails", [])
+		for postbus in postbussen:
+			doc.append("user_emails", {"email_account": postbus})
+		doc.save(ignore_permissions=True)
+
+	def test_toegewezen_postbussen_worden_rechten(self):
+		self.wijs_toe(KEES, "Y Bus Een")
+		self.assertEqual(postbusrechten(KEES), {"Y Bus Een"})
+		self.wijs_toe(KEES, "Y Bus Een", "Y Bus Twee")
+		self.assertEqual(postbusrechten(KEES), {"Y Bus Een", "Y Bus Twee"})
+		self.wijs_toe(KEES, "Y Bus Twee")
+		self.assertEqual(postbusrechten(KEES), {"Y Bus Twee"})
+		self.wijs_toe(KEES)
+		self.assertEqual(postbusrechten(KEES), set())
+
+	def test_opnieuw_opslaan_maakt_geen_dubbele_rechten(self):
+		self.wijs_toe(KEES, "Y Bus Een")
+		frappe.get_doc("User", KEES).save(ignore_permissions=True)
+		self.assertEqual(frappe.db.count("User Permission", {"user": KEES, "allow": "Email Account"}), 1)
+
+	def test_beheerder_leest_alle_postbussen_en_krijgt_geen_beperking(self):
+		self.wijs_toe(BEHEER, "Y Bus Een")
+		self.assertEqual(postbusrechten(BEHEER), set())
+
+	def test_mail_uit_een_andere_postbus_is_niet_te_openen(self):
+		self.wijs_toe(KEES, "Y Bus Een")
+		eigen = maak_mail("Y Bus Een")
+		vreemd = maak_mail("Y Bus Twee")
+		self.addCleanup(frappe.db.delete, "Communication", {"name": ["in", [eigen, vreemd]]})
+		self.assertTrue(frappe.has_permission("Communication", "read", doc=eigen, user=KEES))
+		self.assertFalse(frappe.has_permission("Communication", "read", doc=vreemd, user=KEES))
+
+	def test_migratie_zet_ontbrekende_rechten_neer(self):
+		from y_next.setup import install
+
+		self.wijs_toe(KEES, "Y Bus Een")
+		frappe.db.delete("User Permission", {"user": KEES, "allow": "Email Account"})
+		install.sync_all()
+		self.assertEqual(postbusrechten(KEES), {"Y Bus Een"})
