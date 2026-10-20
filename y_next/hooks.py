@@ -40,6 +40,33 @@ override_whitelisted_methods = {
 	"agenda_ical": "y_next.api.mailserver.ical.agenda_ical",
 }
 
+# Berichten: de afzender maakt ook de kopie voor de ontvanger aan (zie berichten_log.py).
+override_doctype_class = {
+	"Notification Log": "y_next.berichten_log.YNextNotificationLog",
+}
+
+# Concepten en geplande mails (Communication) zijn alleen voor de maker; het
+# berichtenarchief (Y Bericht) alleen voor afzender en ontvanger. Zie rechten.py.
+permission_query_conditions = {
+	"Communication": "y_next.rechten.concepten_query",
+	"Y Bericht": "y_next.rechten.y_bericht_query",
+}
+has_permission = {
+	"Communication": "y_next.rechten.concepten_has_permission",
+	"Y Bericht": "y_next.rechten.y_bericht_has_permission",
+}
+
+# Postbussen van een gebruiker worden ook per mail afgedwongen (User Permissions).
+doc_events = {
+	"User": {
+		"on_update": "y_next.api.postbussen.postbusrechten_bijwerken",
+	},
+	# Concepten en geplande mails komen in geen tijdlijn; zie rechten.py.
+	"Communication": {
+		"validate": "y_next.rechten.concept_buiten_tijdlijn",
+	},
+}
+
 add_to_apps_screen = [
 	{
 		"name": "y_next",

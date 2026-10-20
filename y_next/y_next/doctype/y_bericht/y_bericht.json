@@ -1,0 +1,86 @@
+{
+ "actions": [],
+ "creation": "2026-10-19 22:00:00.000000",
+ "description": "Archief van de berichten uit de tijd voor Berichten op Notification Log. Alleen-lezen: alleen het gelezen-vinkje kan nog veranderen.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "afzender",
+  "ontvanger",
+  "bericht",
+  "afbeelding",
+  "gelezen"
+ ],
+ "fields": [
+  {
+   "fieldname": "afzender",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Afzender",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ontvanger",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Ontvanger",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bericht",
+   "fieldtype": "Text Editor",
+   "label": "Bericht"
+  },
+  {
+   "fieldname": "afbeelding",
+   "fieldtype": "Attach",
+   "label": "Afbeelding"
+  },
+  {
+   "default": "0",
+   "fieldname": "gelezen",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Gelezen"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-19 22:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Y Next",
+ "name": "Y Bericht",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 0,
+   "share": 0
+  },
+  {
+   "role": "Employee",
+   "read": 1,
+   "write": 1
+  },
+  {
+   "role": "Projects User",
+   "read": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

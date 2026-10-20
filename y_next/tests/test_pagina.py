@@ -72,3 +72,26 @@ class TestPagina(IntegrationTestCase):
 		self.assertNotIn("</script><script>alert(1)", html)
 		# Het kleiner-dan-teken staat er als JSON-ontwijking, niet als teken.
 		self.assertIn(r"\u003c/script>\u003cscript>alert(1)", html)
+
+	def test_websitegebruiker_krijgt_uitleg_in_plaats_van_de_app(self):
+		# Een account zonder bureaurol (Website User, bijvoorbeeld een gast van de
+		# omgeving) kan niets met de schermen: elke aanroep zou op een rechtenfout
+		# stuiten.
+		email = "website.gebruiker@voorbeeld.test"
+		if not frappe.db.exists("User", email):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": email,
+					"first_name": "Website",
+					"user_type": "Website User",
+					"send_welcome_email": 0,
+				}
+			).insert(ignore_permissions=True)
+		frappe.set_user(email)
+		response, html = self.haal()
+		self.assertEqual(response.status_code, 403)
+		self.assertIn("Y-next is er voor medewerkers", html)
+		self.assertNotIn('id="root"', html)
+		self.assertNotIn("y_next_mogelijkheden", html)
+		self.assertNotIn("csrf_token", html)
